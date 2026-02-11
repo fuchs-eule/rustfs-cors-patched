@@ -1,0 +1,34 @@
+--- a/rustfs/src/storage/ecfs.rs
++++ b/rustfs/src/storage/ecfs.rs
+@@ -43,7 +43,7 @@
+     csv::WriterBuilder as CsvWriterBuilder, json::WriterBuilder as JsonWriterBuilder, json::writer::JsonArray,
+ };
+ use futures::StreamExt;
+-use http::{HeaderMap, HeaderValue, StatusCode};
++use http::{HeaderMap, HeaderValue, Method, StatusCode};
+ use metrics::{counter, histogram};
+ use rustfs_ecstore::bucket::quota::checker::QuotaChecker;
+ use rustfs_ecstore::{
+@@ -4501,6 +4501,7 @@
+             return self.put_object_extract(req).await;
+         }
+
++        let is_post = req.method == Method::POST;
+         let input = req.input;
+
+         // Save SSE-C parameters before moving input
+@@ -4901,7 +4902,13 @@
+         //     return result;
+         // }
+
+-        let result = Ok(S3Response::new(output));
++        let mut response = S3Response::new(output);
++        if is_post {
++            if let Ok(loc) = HeaderValue::from_str(&format!("/{}/{}", &bucket, &key)) {
++                response.headers.insert(http::header::LOCATION, loc);
++            }
++        }
++        let result = Ok(response);
+         let _ = helper.complete(&result);
+         result
+     }
